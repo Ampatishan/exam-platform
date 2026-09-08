@@ -1,10 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 
 export default function ChangePasswordPage() {
-  const router = useRouter();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [error, setError] = useState('');
@@ -21,11 +20,11 @@ export default function ChangePasswordPage() {
       body: JSON.stringify({ currentPassword: current, newPassword: next }),
     });
 
-    setLoading(false);
     if (res.ok) {
-      router.push('/');
-      router.refresh();
+      // Sign out so the new JWT is issued on next login with mustChangePassword: false
+      await signOut({ callbackUrl: '/login?changed=1' });
     } else {
+      setLoading(false);
       const data = await res.json();
       setError(data.error ?? 'Failed to change password');
     }
