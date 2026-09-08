@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum GradingStatus {
+  AUTO_CORRECT
+  AUTO_WRONG
+  PENDING
+  MANUALLY_GRADED
+}
+
+enum QuestionType {
+  mcq
+  multi_select
+  short_answer
+  fill_blank
+  numeric
+  written
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  username           String    @unique
+  passwordHash       String
+  role               Role
+  mustChangePassword Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  attempts           Attempt[]
+}
+
+model Test {
+  id              String    @id @default(cuid())
+  subject         String
+  title           String
+  durationMinutes Int
+  availableFrom   DateTime?
+  availableUntil  DateTime?
+  publishedAt     DateTime  @default(now())
+  sections        Section[]
+  attempts        Attempt[]
+}
+
+model Section {
+  id        String     @id @default(cuid())
+  testId    String
+  name      String
+  order     Int
+  test      Test       @relation(fields: [testId], references: [id], onDelete: Cascade)
+  questions Question[]
+}
+
+model Question {
+  id           String       @id @default(cuid())
+  sectionId    String
+  type         QuestionType
+  text         String
+  marks        Int
+  difficulty   Difficulty
+  optionsJson  Json?
+  answerJson   Json?
+  acceptedJson Json?
+  tolerance    Float?
+  order        Int
+  section      Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  answers      Answer[]
+}
+
+model Attempt {
+  id            String    @id @default(cuid())
+  userId        String
+  testId        String
+  startedAt     DateTime  @default(now())
+  submittedAt   DateTime?
+  autoSubmitted Boolean   @default(false)
+  user          User      @relation(fields: [userId], references: [id])
+  test          Test      @relation(fields: [testId], references: [id])
+  answers       Answer[]
+
+  @@unique([userId, testId])
+}
+
+model Answer {
+  id            String        @id @default(cuid())
+  attemptId     String
+  questionId    String
+  responseJson  Json
+  marksAwarded  Float?
+  gradingStatus GradingStatus @default(PENDING)
+  attempt       Attempt       @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question      Question      @relation(fields: [questionId], references: [id])
+}
