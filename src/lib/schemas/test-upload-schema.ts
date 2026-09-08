@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+// Normalise correct_answer → answer so LLM-generated JSONs work with either field name
+const normaliseAnswer = (q: unknown) => {
+  if (q && typeof q === 'object' && 'correct_answer' in q && !('answer' in q)) {
+    const { correct_answer, ...rest } = q as Record<string, unknown>;
+    return { ...rest, answer: correct_answer };
+  }
+  return q;
+};
+
 const QuestionSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('mcq'),
@@ -53,7 +62,7 @@ const QuestionSchema = z.discriminatedUnion('type', [
 
 const SectionSchema = z.object({
   name: z.string().min(1),
-  questions: z.array(QuestionSchema).min(1),
+  questions: z.array(z.preprocess(normaliseAnswer, QuestionSchema)).min(1),
 });
 
 export const TestUploadSchema = z.object({
