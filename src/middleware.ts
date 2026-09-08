@@ -20,8 +20,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/login', nextUrl));
   }
 
-  // Force password change
-  if (mustChange && !pathname.startsWith('/change-password')) {
+  // Force password change — allow the change-password API through too
+  if (mustChange && !pathname.startsWith('/change-password') && pathname !== '/api/users/change-password') {
     return NextResponse.redirect(new URL('/change-password', nextUrl));
   }
 
@@ -34,7 +34,7 @@ export default auth((req) => {
   }
 
   // API role guards
-  if (pathname.startsWith('/api/users') && role !== 'TEACHER') {
+  if (pathname.startsWith('/api/users') && pathname !== '/api/users/change-password' && role !== 'TEACHER') {
     return NextResponse.json({ error: 'Forbidden', code: 'FORBIDDEN' }, { status: 403 });
   }
   if (pathname.startsWith('/api/grading') && role !== 'TEACHER') {
