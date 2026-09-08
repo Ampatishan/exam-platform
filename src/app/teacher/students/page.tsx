@@ -15,6 +15,7 @@ export default function StudentsPage() {
   const [error, setError] = useState('');
   const [resetPasswords, setResetPasswords] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function load() {
     const res = await fetch('/api/users');
@@ -48,6 +49,19 @@ export default function StudentsPage() {
     if (res.ok) {
       const data = await res.json();
       setResetPasswords((p) => ({ ...p, [id]: data.temporaryPassword }));
+    }
+  }
+
+  async function deleteStudent(id: string, username: string) {
+    if (!confirm(`Delete student "${username}"? This cannot be undone.`)) return;
+    setDeletingId(id);
+    const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+    setDeletingId(null);
+    if (res.ok || res.status === 204) {
+      setStudents((prev) => prev.filter((s) => s.id !== id));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error ?? 'Failed to delete student');
     }
   }
 
@@ -101,7 +115,7 @@ export default function StudentsPage() {
                     ? <span className="text-orange-600 text-xs">Must change password</span>
                     : <span className="text-green-600 text-xs">Active</span>}
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 flex gap-3 items-center">
                   {resetPasswords[s.id] ? (
                     <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
                       Temp pw: {resetPasswords[s.id]}
@@ -114,6 +128,13 @@ export default function StudentsPage() {
                       Reset password
                     </button>
                   )}
+                  <button
+                    onClick={() => deleteStudent(s.id, s.username)}
+                    disabled={deletingId === s.id}
+                    className="text-red-600 hover:underline text-xs disabled:opacity-40"
+                  >
+                    {deletingId === s.id ? 'Deleting…' : 'Delete'}
+                  </button>
                 </td>
               </tr>
             ))}

@@ -88,4 +88,36 @@ describe('gradeQuestion', () => {
       expect(r.marksAwarded).toBe(0);
     });
   });
+
+  describe('empty / unanswered responses', () => {
+    it('mcq: null response → AUTO_WRONG', () => {
+      const r = gradeQuestion(QuestionType.mcq, null, 'B', null, null, 4);
+      expect(r.marksAwarded).toBe(0);
+      expect(r.gradingStatus).toBe(GradingStatus.AUTO_WRONG);
+    });
+
+    it('mcq: empty string → AUTO_WRONG', () => {
+      const r = gradeQuestion(QuestionType.mcq, '', 'B', null, null, 4);
+      expect(r.marksAwarded).toBe(0);
+      expect(r.gradingStatus).toBe(GradingStatus.AUTO_WRONG);
+    });
+
+    it('multi_select: empty array → AUTO_WRONG', () => {
+      const r = gradeQuestion(QuestionType.multi_select, [], ['A', 'C'], null, null, 3);
+      expect(r.marksAwarded).toBe(0);
+      expect(r.gradingStatus).toBe(GradingStatus.AUTO_WRONG);
+    });
+
+    it('short_answer: empty string → AUTO_WRONG', () => {
+      const r = gradeQuestion(QuestionType.short_answer, '', 'paris', [], null, 2);
+      expect(r.marksAwarded).toBe(0);
+      expect(r.gradingStatus).toBe(GradingStatus.AUTO_WRONG);
+    });
+
+    it('numeric: null → AUTO_WRONG', () => {
+      const r = gradeQuestion(QuestionType.numeric, null, 42, null, 0, 5);
+      expect(r.marksAwarded).toBe(0);
+      expect(r.gradingStatus).toBe(GradingStatus.AUTO_WRONG);
+    });
+  });
 });

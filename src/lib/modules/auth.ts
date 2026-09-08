@@ -35,3 +35,9 @@ export async function listStudents() {
     orderBy: { username: 'asc' },
   });
 }
+
+export async function deleteStudent(id: string) {
+  const user = await db.user.findUniqueOrThrow({ where: { id } });
+  if (user.role !== Role.STUDENT) throw Object.assign(new Error('Not a student'), { code: 'FORBIDDEN' });
+  await db.user.delete({ where: { id } });
+}

@@ -3,6 +3,13 @@ import { GradingStatus, QuestionType } from '@prisma/client';
 
 type GradeResult = { marksAwarded: number; gradingStatus: GradingStatus };
 
+function isEmpty(response: unknown): boolean {
+  if (response === null || response === undefined) return true;
+  if (typeof response === 'string') return response.trim() === '';
+  if (Array.isArray(response)) return response.length === 0;
+  return false;
+}
+
 export function gradeQuestion(
   type: QuestionType,
   response: unknown,
@@ -13,6 +20,11 @@ export function gradeQuestion(
 ): GradeResult {
   if (type === 'written') {
     return { marksAwarded: 0, gradingStatus: GradingStatus.PENDING };
+  }
+
+  // Empty response → always wrong
+  if (isEmpty(response)) {
+    return { marksAwarded: 0, gradingStatus: GradingStatus.AUTO_WRONG };
   }
 
   if (type === 'mcq') {
@@ -48,6 +60,7 @@ export function gradeQuestion(
   if (type === 'numeric') {
     const answer = Number(answerJson);
     const resp = Number(response);
+    if (isNaN(resp)) return { marksAwarded: 0, gradingStatus: GradingStatus.AUTO_WRONG };
     const tol = tolerance ?? 0;
     const correct = Math.abs(resp - answer) <= tol;
     return {
@@ -67,7 +80,13 @@ export async function gradeSubmission(
 ) {
   const attempt = await db.attempt.findUniqueOrThrow({
     where: { id: attemptId },
-    include: { test: true },
+    include: {
+      test: {
+        include: {
+          sections: { include: { questions: true } },
+        },
+      },
+    },
   });
 
   if (attempt.userId !== userId) throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });
@@ -76,17 +95,17 @@ export async function gradeSubmission(
   const now = new Date();
   const expiresAt = new Date(attempt.startedAt.getTime() + attempt.test.durationMinutes * 60 * 1000);
   const isLate = now > new Date(expiresAt.getTime() + 30_000);
-  // We accept late submissions but flag them; auto-submit path already sets autoSubmitted=true
 
-  const questions = await db.question.findMany({
-    where: { id: { in: responses.map((r) => r.questionId) } },
-  });
+  // All questions in the test
+  const allQuestions = attempt.test.sections.flatMap((s) => s.questions);
+  const allQuestionMap = new Map(allQuestions.map((q) => [q.id, q]));
 
-  const questionMap = new Map(questions.map((q) => [q.id, q]));
+  // Index submitted responses by questionId
+  const responseMap = new Map(responses.map((r) => [r.questionId, r.response]));
 
-  const answerData = responses.map(({ questionId, response }) => {
-    const q = questionMap.get(questionId);
-    if (!q) throw new Error(`Unknown question ${questionId}`);
+  // Grade every question — missing responses treated as empty (wrong)
+  const answerData = allQuestions.map((q) => {
+    const response = responseMap.has(q.id) ? responseMap.get(q.id) : null;
     const { marksAwarded, gradingStatus } = gradeQuestion(
       q.type,
       response,
@@ -95,7 +114,7 @@ export async function gradeSubmission(
       q.tolerance,
       q.marks,
     );
-    return { questionId, response, marksAwarded, gradingStatus };
+    return { questionId: q.id, response: response ?? null, marksAwarded, gradingStatus };
   });
 
   await db.$transaction([
@@ -125,7 +144,7 @@ export async function gradeSubmission(
       gradingStatus,
       correctAnswer:
         gradingStatus === GradingStatus.AUTO_WRONG
-          ? questionMap.get(questionId)?.answerJson
+          ? allQuestionMap.get(questionId)?.answerJson
           : undefined,
     })),
     pendingWritten,
@@ -158,7 +177,6 @@ export async function manualGrade(answerId: string, marksAwarded: number) {
     data: { marksAwarded, gradingStatus: GradingStatus.MANUALLY_GRADED },
   });
 
-  // Publish final score if no more pending answers for this attempt
   const pending = await db.answer.count({
     where: { attemptId: answer.attemptId, gradingStatus: GradingStatus.PENDING },
   });
