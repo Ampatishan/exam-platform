@@ -13,6 +13,9 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     const result = await startAttempt(session.user.id, params.id);
     return NextResponse.json(result, { status: 201 });
   } catch (e: any) {
+    if (e.code === 'NOT_ASSIGNED') {
+      return NextResponse.json({ error: 'Not assigned to this test', code: 'NOT_ASSIGNED' }, { status: 403 });
+    }
     if (e.code === 'WINDOW_CLOSED') {
       return NextResponse.json({ error: 'Test is not currently open', code: 'WINDOW_CLOSED' }, { status: 403 });
     }

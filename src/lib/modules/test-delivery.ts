@@ -13,6 +13,7 @@ function getStatus(from: Date | null, until: Date | null, now: Date): TestStatus
 export async function listTestsStudent(userId: string) {
   const now = new Date();
   const tests = await db.test.findMany({
+    where: { assignments: { some: { userId } } },
     orderBy: { publishedAt: 'desc' },
     include: { attempts: { where: { userId }, select: { id: true } } },
   });
@@ -32,6 +33,11 @@ export async function listTestsStudent(userId: string) {
 export async function startAttempt(userId: string, testId: string) {
   const now = new Date();
   const test = await db.test.findUniqueOrThrow({ where: { id: testId } });
+
+  const assignment = await db.testAssignment.findUnique({ where: { testId_userId: { testId, userId } } });
+  if (!assignment) {
+    throw Object.assign(new Error('Not assigned to this test'), { code: 'NOT_ASSIGNED' });
+  }
 
   const status = getStatus(test.availableFrom, test.availableUntil, now);
   if (status !== 'open') {

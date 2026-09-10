@@ -35,25 +35,36 @@ enum Difficulty {
 }
 
 model User {
-  id                 String    @id @default(cuid())
-  username           String    @unique
+  id                 String           @id @default(cuid())
+  username           String           @unique
   passwordHash       String
   role               Role
-  mustChangePassword Boolean   @default(false)
-  createdAt          DateTime  @default(now())
+  mustChangePassword Boolean          @default(false)
+  createdAt          DateTime         @default(now())
   attempts           Attempt[]
+  testAssignments    TestAssignment[]
 }
 
 model Test {
-  id              String    @id @default(cuid())
+  id              String           @id @default(cuid())
   subject         String
   title           String
   durationMinutes Int
   availableFrom   DateTime?
   availableUntil  DateTime?
-  publishedAt     DateTime  @default(now())
+  publishedAt     DateTime         @default(now())
   sections        Section[]
   attempts        Attempt[]
+  assignments     TestAssignment[]
+}
+
+model TestAssignment {
+  testId String
+  userId String
+  test   Test   @relation(fields: [testId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([testId, userId])
 }
 
 model Section {
