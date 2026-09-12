@@ -25,3 +25,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   return NextResponse.json(test);
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await auth();
+  if (session?.user?.role !== 'TEACHER') {
+    return NextResponse.json({ error: 'Forbidden', code: 'FORBIDDEN' }, { status: 403 });
+  }
+
+  await db.test.delete({ where: { id: params.id } });
+  return new NextResponse(null, { status: 204 });
+}

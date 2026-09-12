@@ -58,6 +58,7 @@ export default function TeacherTestsPage() {
   const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'questions' | 'students'>('questions');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -97,6 +98,19 @@ export default function TeacherTestsPage() {
       } else {
         setUploadError(data.error ?? 'Upload failed');
       }
+    }
+  }
+
+  async function handleDelete(id: string, title: string) {
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    setDeletingId(id);
+    const res = await fetch(`/api/tests/${id}`, { method: 'DELETE' });
+    setDeletingId(null);
+    if (res.ok || res.status === 204) {
+      if (viewingTest?.id === id) setViewingTest(null);
+      setTests((prev) => prev.filter((t) => t.id !== id));
+    } else {
+      alert('Failed to delete test');
     }
   }
 
@@ -192,13 +206,20 @@ export default function TeacherTestsPage() {
                       ? `${t.availableFrom ? new Date(t.availableFrom).toLocaleDateString() : '—'} → ${t.availableUntil ? new Date(t.availableUntil).toLocaleDateString() : '—'}`
                       : 'Always open'}
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-2 text-right flex gap-3 justify-end items-center">
                     <button
                       onClick={() => handleView(t.id)}
                       disabled={loadingDetail === t.id}
                       className="text-blue-600 hover:underline text-xs disabled:opacity-50"
                     >
                       {loadingDetail === t.id ? 'Loading…' : viewingTest?.id === t.id ? 'Hide' : 'View'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(t.id, t.title)}
+                      disabled={deletingId === t.id}
+                      className="text-red-600 hover:underline text-xs disabled:opacity-40"
+                    >
+                      {deletingId === t.id ? 'Deleting…' : 'Delete'}
                     </button>
                   </td>
                 </tr>
