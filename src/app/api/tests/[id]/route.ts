@@ -32,6 +32,17 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Forbidden', code: 'FORBIDDEN' }, { status: 403 });
   }
 
-  await db.test.delete({ where: { id: params.id } });
+  const attempts = await db.attempt.findMany({
+    where: { testId: params.id },
+    select: { id: true },
+  });
+  const attemptIds = attempts.map((a) => a.id);
+
+  await db.$transaction([
+    db.answer.deleteMany({ where: { attemptId: { in: attemptIds } } }),
+    db.attempt.deleteMany({ where: { testId: params.id } }),
+    db.test.delete({ where: { id: params.id } }),
+  ]);
+
   return new NextResponse(null, { status: 204 });
 }
