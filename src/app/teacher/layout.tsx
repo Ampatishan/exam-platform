@@ -15,6 +15,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
           <Link href="/teacher" className="hover:underline">Dashboard</Link>
           <Link href="/teacher/tests" className="hover:underline">Tests</Link>
           <Link href="/teacher/students" className="hover:underline">Students</Link>
+          <Link href="/teacher/results" className="hover:underline">Results</Link>
           <Link href="/teacher/grading" className="hover:underline">Grading</Link>
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
